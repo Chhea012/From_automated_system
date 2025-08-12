@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime
 from utils.number_to_words import number_to_words_usd, usd_format
+from utils.helpers import format_date_with_ordinal, format_date_without_ordinal, parse_ordinal_date
 from db_handler import get_contracts, update_contract
 
 def update_contract_tab():
@@ -14,17 +15,20 @@ def update_contract_tab():
         )
 
         if contract_to_update:
-            contract_data = contracts_data[contracts_data['contract_number'] == contract_to_update].iloc[0]
+            contract_data = contracts_data[contracts_data['contract_number'] == contract_to_update].iloc[0].to_dict()
+            # Ensure output_description has a default value if missing
+            contract_data['output_description'] = contract_data.get('output_description', '')
 
             with st.form("update_form"):
                 col1, col2 = st.columns([1, 1], gap="medium")
                 with col1:
                     project_title = st.text_input("Project Title", value=contract_data['project_title'])
+                    output_description = st.text_input("Output Description", value=contract_data['output_description'])
                     contract_number = st.text_input("Contract Number", value=contract_data['contract_number'])
                     organization_name = st.text_input("Organization Name", value=contract_data['organization_name'])
                 with col2:
                     registration_number = st.text_input("Registration Number", value=contract_data['registration_number'])
-                    registration_date = st.date_input("Registration Date", value=datetime.strptime(contract_data['registration_date'], "%d %B %Y"))
+                    registration_date = st.date_input("Registration Date", value=parse_ordinal_date(contract_data['registration_date']))
                     tax_percentage = st.selectbox("Tax Percentage (%)", [0, 5, 10, 15, 20], index=[0, 5, 10, 15, 20].index(int(contract_data['tax_percentage'])))
 
                 col1, col2 = st.columns([1, 1], gap="medium")
@@ -49,14 +53,15 @@ def update_contract_tab():
 
                 col1, col2, col3 = st.columns([1, 1, 1], gap="medium")
                 with col1:
-                    agreement_start_date = st.date_input("Agreement Start Date", value=datetime.strptime(contract_data['agreement_start_date'], "%d %B %Y"))
+                    agreement_start_date = st.date_input("Agreement Start Date", value=parse_ordinal_date(contract_data['agreement_start_date']))
                 with col2:
-                    agreement_end_date = st.date_input("Agreement End Date", value=datetime.strptime(contract_data['agreement_end_date'], "%d %B %Y"))
+                    agreement_end_date = st.date_input("Agreement End Date", value=parse_ordinal_date(contract_data['agreement_end_date']))
                 with col3:
                     total_fee_usd = st.number_input("Total Fee USD", value=float(contract_data['total_fee_usd']), min_value=0.0, step=0.01, format="%.2f")
 
                 payment_installment_desc = st.text_input("Payment Installment Description", value=contract_data['payment_installment_desc'])
                 workshop_description = st.text_input("Workshop Description", value=contract_data['workshop_description'])
+                deliverables = st.text_area("Deliverables (one per line)", value=contract_data['deliverables'], height=150)
 
                 col1, col2 = st.columns([1, 1], gap="medium")
                 with col1:
@@ -68,7 +73,8 @@ def update_contract_tab():
                 update_submitted = st.form_submit_button("Update Contract")
 
                 if update_submitted:
-                    if not all([project_title, contract_number, party_a_name, party_b_full_name_with_title]):
+                    required_fields = [project_title, contract_number, party_a_name, party_b_full_name_with_title, output_description, deliverables]
+                    if not all(required_fields):
                         st.markdown('<div class="error">Please fill in all required fields</div>', unsafe_allow_html=True)
                     elif agreement_end_date < agreement_start_date:
                         st.markdown('<div class="error">End date cannot be before start date</div>', unsafe_allow_html=True)
@@ -89,9 +95,9 @@ def update_contract_tab():
                             "party_b_phone": party_b_phone,
                             "party_b_email": party_b_email,
                             "registration_number": registration_number,
-                            "registration_date": registration_date.strftime("%d %B %Y"),
-                            "agreement_start_date": agreement_start_date.strftime("%d %B %Y"),
-                            "agreement_end_date": agreement_end_date.strftime("%d %B %Y"),
+                            "registration_date": format_date_without_ordinal(registration_date),
+                            "agreement_start_date": format_date_with_ordinal(agreement_start_date),
+                            "agreement_end_date": format_date_with_ordinal(agreement_end_date),
                             "total_fee_usd": total_fee_usd,
                             "gross_amount_usd": gross_amount_usd,
                             "tax_percentage": tax_percentage,
@@ -107,12 +113,14 @@ def update_contract_tab():
                             "party_b_signature_name": party_b_signature_name,
                             "party_b_position": party_b_position,
                             "total_fee_words": number_to_words_usd(total_fee_usd),
-                            "title": title
+                            "title": title,
+                            "deliverables": deliverables,
+                            "output_description": output_description
                         }
 
                         if update_contract(contract_data['id'], updated_data):
                             st.session_state.active_tab = "View Contracts"
-                            st.markdown('<div class="success">Contract updated successfully!</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="success">Contract updated successfully! You can now generate the DOCX in View Contracts.</div>', unsafe_allow_html=True)
                             st.rerun()
     else:
         st.info("No contracts available to update. Add a contract first.")

@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import io
 from db_handler import get_contracts
+from templates.generate_contract import generate_docx
 
 def to_excel(df):
     output = io.BytesIO()
@@ -42,5 +43,26 @@ def view_contracts_tab():
             file_name="contracts_data.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
+        st.markdown('<div class="section-header">Generate Contract DOCX</div>', unsafe_allow_html=True)
+        selected_contract = st.selectbox(
+            "Select Contract to Generate DOCX",
+            options=contracts_data['contract_number'],
+            format_func=lambda x: f"{x} - {contracts_data[contracts_data['contract_number'] == x]['project_title'].iloc[0]}"
+        )
+        if st.button("Generate and Download DOCX"):
+            if selected_contract:
+                contract_data = contracts_data[contracts_data['contract_number'] == selected_contract].iloc[0].to_dict()
+                # Ensure output_description exists
+                contract_data['output_description'] = contract_data.get('output_description', '')
+                docx_bytes = generate_docx(contract_data)
+                st.download_button(
+                    label="Download Generated Contract",
+                    data=docx_bytes,
+                    file_name=f"{selected_contract}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    key="download_docx"
+                )
+                st.markdown('<div class="success">DOCX generated successfully!</div>', unsafe_allow_html=True)
     else:
         st.info("No contracts available. Add a contract using the 'Create Contract' tab.")

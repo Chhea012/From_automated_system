@@ -6,7 +6,6 @@ from config import DB_CONFIG
 
 def get_db_connection():
     try:
-        # Debug: Print DB_CONFIG to verify its contents
         print("DB_CONFIG:", DB_CONFIG)
         connection = mysql.connector.connect(**DB_CONFIG)
         if connection.is_connected():
@@ -17,9 +16,11 @@ def get_db_connection():
     except Error as e:
         st.error(f"Error connecting to MySQL: {e}")
         if e.errno == mysql.connector.errorcode.ER_ACCESS_DENIED_ERROR:
-            st.error("Access denied. Check your MySQL username and password.")
+            st.error("Access denied. Check username/password.")
         elif e.errno == mysql.connector.errorcode.ER_BAD_DB_ERROR:
-            st.error("Database 'contract_management' does not exist. Please create it.")
+            st.error("Database does not exist. Create 'contract_management'.")
+        elif e.errno == mysql.connector.errorcode.ER_DBACCESS_DENIED_ERROR:
+            st.error("No access to database. Grant permissions.")
         return None
 
 def get_contracts():
@@ -44,7 +45,7 @@ def get_contracts():
         "workshop_description", "focal_person_a_name", "focal_person_a_position",
         "focal_person_a_phone", "focal_person_a_email",
         "party_a_signature_name", "party_b_signature_name", "party_b_position",
-        "total_fee_words", "title"
+        "total_fee_words", "title", "deliverables", "output_description"
     ])
 
 def insert_contract(data):
@@ -63,8 +64,8 @@ def insert_contract(data):
                 workshop_description, focal_person_a_name, focal_person_a_position,
                 focal_person_a_phone, focal_person_a_email,
                 party_a_signature_name, party_b_signature_name, party_b_position,
-                total_fee_words, title
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                total_fee_words, title, deliverables, output_description
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             values = (
                 data["id"], data["project_title"], data["contract_number"], data["organization_name"],
@@ -76,7 +77,7 @@ def insert_contract(data):
                 data["workshop_description"], data["focal_person_a_name"], data["focal_person_a_position"],
                 data["focal_person_a_phone"], data["focal_person_a_email"],
                 data["party_a_signature_name"], data["party_b_signature_name"], data["party_b_position"],
-                data["total_fee_words"], data["title"]
+                data["total_fee_words"], data["title"], data["deliverables"], data["output_description"]
             )
             cursor.execute(query, values)
             connection.commit()
@@ -104,7 +105,7 @@ def update_contract(contract_id, data):
                 workshop_description = %s, focal_person_a_name = %s, focal_person_a_position = %s,
                 focal_person_a_phone = %s, focal_person_a_email = %s,
                 party_a_signature_name = %s, party_b_signature_name = %s, party_b_position = %s,
-                total_fee_words = %s, title = %s
+                total_fee_words = %s, title = %s, deliverables = %s, output_description = %s
             WHERE id = %s
             """
             values = (
@@ -117,7 +118,7 @@ def update_contract(contract_id, data):
                 data["workshop_description"], data["focal_person_a_name"], data["focal_person_a_position"],
                 data["focal_person_a_phone"], data["focal_person_a_email"],
                 data["party_a_signature_name"], data["party_b_signature_name"], data["party_b_position"],
-                data["total_fee_words"], data["title"], contract_id
+                data["total_fee_words"], data["title"], data["deliverables"], data["output_description"], contract_id
             )
             cursor.execute(query, values)
             connection.commit()
