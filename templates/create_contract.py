@@ -6,6 +6,14 @@ from db_handler import insert_contract
 import uuid
 
 def create_contract_tab():
+    # Default deliverables text
+    default_deliverables = """Sign Agreement
+Submit the draft outline
+Submit the draft budget analysis to be submitted to NGOF
+Submit the well-written and comprehensive analysis report based on the outcomes of the analysis.
+Present analysis report in a multi-stakeholder workshop.
+Submit invoice and receipt of the service"""
+
     with st.form("contract_form", clear_on_submit=True):
         st.markdown('<div class="section-header">Project & Contract Details</div>', unsafe_allow_html=True)
         col1, col2 = st.columns([1, 1], gap="medium")
@@ -52,7 +60,7 @@ def create_contract_tab():
 
         payment_installment_desc = st.text_input("Payment Installment Description", placeholder="e.g., Installment #1 (100%)")
         workshop_description = st.text_input("Workshop Description", placeholder="e.g., multi-stakeholder workshop")
-        deliverables = st.text_area("Deliverables (one per line)", placeholder="Sign Agreement\nSubmit the draft outline\nSubmit the draft budget analysis to be submitted to NGOF\nSubmit the well-written and comprehensive analysis report based on the outcomes of the analysis.\nPresent analysis report in a multi-stakeholder workshop.\nSubmit invoice and receipt of the service", height=150)
+        deliverables = st.text_area("Deliverables (one per line)", value=default_deliverables, placeholder="Enter deliverables, one per line", height=150)
 
         st.markdown('<div class="section-header">Signatures</div>', unsafe_allow_html=True)
         col1, col2 = st.columns([1, 1], gap="medium")
@@ -112,6 +120,6 @@ def create_contract_tab():
                 }
 
                 if insert_contract(new_data):
-                    st.session_state.active_tab = "View Contracts"
+                    st.session_state.active_page = "View Contract"  # Updated to match navigation option
                     st.markdown('<div class="success">Contract added successfully! You can now generate the DOCX in View Contracts.</div>', unsafe_allow_html=True)
                     st.rerun()

@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 from templates.create_contract import create_contract_tab
 from templates.view_contracts import view_contracts_tab, to_excel
 from templates.update_contract import update_contract_tab
@@ -6,11 +7,13 @@ from templates.delete_contract import delete_contract_tab
 from templates.generate_contract import generate_docx
 from db_handler import get_contracts
 from utils.styles import STYLES
+import io
+import zipfile
 
 # Set page configuration
 st.set_page_config(page_title="Contract Management System", layout="wide")
 
-# Enhanced custom CSS for sidebar and main content (without tooltip styling)
+# Enhanced custom CSS for sidebar and main content
 CUSTOM_STYLES = STYLES + """
 <style>
 /* Sidebar styling */
@@ -23,15 +26,15 @@ CUSTOM_STYLES = STYLES + """
 .sidebar-logo {
     display: block;
     margin: 0 auto 20px auto;
-    width: 100%; /* Match HTML style */
-    max-width: 100%; /* Match HTML style */
+    width: 100%;
+    max-width: 100%;
     height: auto;
 }
 img.stImage[alt="0"] {
     display: block;
     margin: 0 auto 20px auto;
-    width: 100% !important; /* Ensure width override */
-    max-width: 100% !important; /* Ensure max-width override */
+    width: 100% !important;
+    max-width: 100% !important;
     height: auto;
 }
 .nav-button {
@@ -77,6 +80,13 @@ img.stImage[alt="0"] {
     color: #27ae60;
     font-weight: bold;
 }
+/* Column gap for buttons */
+div[data-testid="column"] {
+    margin-right: 5px;
+}
+div[data-testid="column"]:last-child {
+    margin-right: 0;
+}
 </style>
 """
 
@@ -90,7 +100,7 @@ st.markdown('<div class="header">Contract Management System</div>', unsafe_allow
 if "active_page" not in st.session_state:
     st.session_state.active_page = "View Contract"
 
-# Navigation options with icons (no tooltips)
+# Navigation options with icons
 navigation_options = {
     "Create Contract": "📝",
     "View Contract": "👁️‍🗨️",
@@ -108,7 +118,6 @@ st.sidebar.image(
     output_format="auto"
 )
 for page_name, icon in navigation_options.items():
-    # Apply 'active' class to the current page
     button_class = "nav-button active" if page_name == st.session_state.active_page else "nav-button"
     if st.sidebar.button(
         f"{icon} {page_name}",
@@ -128,6 +137,48 @@ required_fields = [
     'party_b_signature_name', 'party_b_position'
 ]
 
+def generate_all_docx(contracts_data):
+    try:
+        zip_buffer = io.BytesIO()
+        used_filenames = set()  # Track used filenames to avoid overwrites
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for idx, contract_data in contracts_data.iterrows():
+                contract_data = contract_data.to_dict()
+                contract_data['output_description'] = contract_data.get('output_description', '')
+                
+                # Get and sanitize party_b_signature_name
+                party_b_name = contract_data.get('party_b_signature_name', f'Unknown_{idx}')
+                party_b_name = ''.join(c for c in party_b_name if c.isalnum() or c in '._- ')  # Strict sanitization
+                party_b_name = party_b_name.strip() or f'Unknown_{idx}'  # Ensure non-empty
+                
+                # Get and sanitize contract_number for fallback
+                contract_number = contract_data.get('contract_number', f'Contract_{idx}')
+                contract_number = ''.join(c for c in contract_number if c.isalnum() or c in '._- ')  # Strict sanitization
+                contract_number = contract_number.strip() or f'Contract_{idx}'
+                
+                # Start with base filename
+                base_file_name = f"{party_b_name}.docx"
+                file_name = base_file_name
+                counter = 1
+                
+                # Handle duplicate filenames
+                while file_name in used_filenames:
+                    file_name = f"{party_b_name}_{contract_number}_{counter}.docx"
+                    counter += 1
+                
+                used_filenames.add(file_name)
+                
+                try:
+                    docx_bytes = generate_docx(contract_data)
+                    zip_file.writestr(file_name, docx_bytes)
+                except Exception as e:
+                    st.error(f"Error generating DOCX for contract {contract_data.get('contract_number', f'Unknown_{idx}')}: {str(e)}")
+                    continue  # Skip to next contract
+        return zip_buffer.getvalue()
+    except Exception as e:
+        st.error(f"Error creating ZIP file: {str(e)}")
+        return None
+
 # Render content based on selected page
 page = st.session_state.active_page
 if page == "Create Contract":
@@ -139,51 +190,75 @@ elif page == "Update Contract":
 elif page == "Delete Contract":
     delete_contract_tab()
 elif page == "Download Contract as Excel":
-    st.markdown('<div class="section-header">Download Contracts as Excel</div>', unsafe_allow_html=True)
-    contracts_data = get_contracts()
-    if not contracts_data.empty:
-        try:
+    try:
+        st.markdown('<div class="section-header">Download Contracts as Excel</div>', unsafe_allow_html=True)
+        contracts_data = get_contracts()
+        if contracts_data is None or not isinstance(contracts_data, pd.DataFrame):
+            raise ValueError("Failed to retrieve contracts data or invalid data format")
+        if not contracts_data.empty:
             excel_data = to_excel(contracts_data)
-            st.download_button(
-                label="📥 Download Contracts as Excel",
-                data=excel_data,
-                file_name="contracts_data.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="download_excel"
-            )
-        except Exception as e:
-            st.error(f"Error generating Excel file: {str(e)}")
-    else:
-        st.info("No contracts available to download. Add a contract using the 'Create Contract' option.")
+            if excel_data:
+                st.download_button(
+                    label="📥 Download Contracts as Excel",
+                    data=excel_data,
+                    file_name="contracts_data.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="download_excel"
+                )
+        else:
+            st.info("No contracts available to download. Add a contract using the 'Create Contract' option.")
+    except Exception as e:
+        st.error(f"Error generating Excel file: {str(e)}")
 elif page == "Generate and Download Docx":
-    st.markdown('<div class="section-header">Generate and Download DOCX</div>', unsafe_allow_html=True)
-    contracts_data = get_contracts()
-    if not contracts_data.empty:
-        selected_contract = st.selectbox(
-            "Select Contract to Generate DOCX",
-            options=contracts_data['contract_number'],
-            format_func=lambda x: f"{x} - {contracts_data[contracts_data['contract_number'] == x]['project_title'].iloc[0]}",
-            key="select_contract_docx"
-        )
-        if st.button("Generate and Download DOCX", key="generate_docx_button"):
-            try:
-                contract_data = contracts_data[contracts_data['contract_number'] == selected_contract].iloc[0].to_dict()
-                # Validate required fields
-                missing_fields = [field for field in required_fields if field not in contract_data or not contract_data[field]]
-                if missing_fields:
-                    st.error(f"Missing or empty required fields: {', '.join(missing_fields)}")
-                else:
-                    contract_data['output_description'] = contract_data.get('output_description', '')
-                    docx_bytes = generate_docx(contract_data)
-                    st.download_button(
-                        label="Download Generated Contract",
-                        data=docx_bytes,
-                        file_name=f"Consultant_Contract_{selected_contract}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        key=f"download_docx_{selected_contract}"
-                    )
-                    st.markdown('<div class="success">DOCX generated successfully!</div>', unsafe_allow_html=True)
-            except Exception as e:
-                st.error(f"Error generating DOCX: {str(e)}")
-    else:
-        st.info("No contracts available to generate DOCX. Add a contract using the 'Create Contract' option.")
+    try:
+        st.markdown('<div class="section-header">Generate and Download DOCX</div>', unsafe_allow_html=True)
+        contracts_data = get_contracts()
+        if contracts_data is None or not isinstance(contracts_data, pd.DataFrame):
+            raise ValueError("Failed to retrieve contracts data or invalid data format")
+        if not contracts_data.empty:
+            selected_contract = st.selectbox(
+                "Select Contract to Generate DOCX",
+                options=contracts_data['contract_number'],
+                format_func=lambda x: f"{contracts_data[contracts_data['contract_number'] == x]['party_b_signature_name'].iloc[0]} - {contracts_data[contracts_data['contract_number'] == x]['project_title'].iloc[0]}",
+                key="select_contract_docx"
+            )
+            col1, col2 = st.columns([1, 1], gap="small")  # 5px gap approximation
+            with col1:
+                if st.button("Generate and Download DOCX", key="generate_docx_button"):
+                    try:
+                        contract_data = contracts_data[contracts_data['contract_number'] == selected_contract].iloc[0].to_dict()
+                        missing_fields = [field for field in required_fields if field not in contract_data or not contract_data[field]]
+                        if missing_fields:
+                            st.error(f"Missing or empty required fields: {', '.join(missing_fields)}")
+                        else:
+                            contract_data['output_description'] = contract_data.get('output_description', '')
+                            party_b_name = contract_data.get('party_b_signature_name', f'Unknown_{selected_contract}')
+                            party_b_name = ''.join(c for c in party_b_name if c.isalnum() or c in '._- ')  # Strict sanitization
+                            party_b_name = party_b_name.strip() or f'Unknown_{selected_contract}'
+                            docx_bytes = generate_docx(contract_data)
+                            st.download_button(
+                                label="Download Generated Contract",
+                                data=docx_bytes,
+                                file_name=f"{party_b_name}.docx",
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                key=f"download_docx_{selected_contract}"
+                            )
+                            st.markdown('<div class="success">DOCX generated successfully!</div>', unsafe_allow_html=True)
+                    except Exception as e:
+                        st.error(f"Error generating DOCX: {str(e)}")
+            with col2:
+                if st.button("Generate All and Download All DOCX", key="generate_all_docx_button"):
+                    zip_data = generate_all_docx(contracts_data)
+                    if zip_data:
+                        st.download_button(
+                            label="Download All Contracts as ZIP",
+                            data=zip_data,
+                            file_name="all_contracts.zip",
+                            mime="application/zip",
+                            key="download_all_docx"
+                        )
+                        st.markdown('<div class="success">All DOCX files generated and zipped successfully!</div>', unsafe_allow_html=True)
+        else:
+            st.info("No contracts available to generate DOCX. Add a contract using the 'Create Contract' option.")
+    except Exception as e:
+        st.error(f"Error loading contracts: {str(e)}")
