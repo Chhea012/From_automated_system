@@ -235,7 +235,7 @@ def generate_docx(data):
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.columns[0].width = Inches(1.2)
     table.columns[1].width = Inches(1.5)
-    table.columns[2].width = Inches(2.5)
+    table.columns[2].width = Inches(3.5)
     table.columns[3].width = Inches(1.2)
     hdr_cells = table.rows[0].cells
     hdr_cells[0].text = 'Installment'
