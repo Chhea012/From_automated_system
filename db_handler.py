@@ -6,7 +6,6 @@ from config import DB_CONFIG
 
 def get_db_connection():
     try:
-        print("DB_CONFIG:", DB_CONFIG)
         connection = mysql.connector.connect(**DB_CONFIG)
         if connection.is_connected():
             return connection
@@ -45,7 +44,8 @@ def get_contracts():
         "workshop_description", "focal_person_a_name", "focal_person_a_position",
         "focal_person_a_phone", "focal_person_a_email",
         "party_a_signature_name", "party_b_signature_name", "party_b_position",
-        "total_fee_words", "title", "deliverables", "output_description"
+        "total_fee_words", "title", "deliverables", "output_description",
+        "custom_article_sentences"
     ])
 
 def insert_contract(data):
@@ -64,8 +64,8 @@ def insert_contract(data):
                 workshop_description, focal_person_a_name, focal_person_a_position,
                 focal_person_a_phone, focal_person_a_email,
                 party_a_signature_name, party_b_signature_name, party_b_position,
-                total_fee_words, title, deliverables, output_description
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                total_fee_words, title, deliverables, output_description, custom_article_sentences
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             values = (
                 data["id"], data["project_title"], data["contract_number"], data["organization_name"],
@@ -77,7 +77,8 @@ def insert_contract(data):
                 data["workshop_description"], data["focal_person_a_name"], data["focal_person_a_position"],
                 data["focal_person_a_phone"], data["focal_person_a_email"],
                 data["party_a_signature_name"], data["party_b_signature_name"], data["party_b_position"],
-                data["total_fee_words"], data["title"], data["deliverables"], data["output_description"]
+                data["total_fee_words"], data["title"], data["deliverables"], data["output_description"],
+                data["custom_article_sentences"]
             )
             cursor.execute(query, values)
             connection.commit()
@@ -105,7 +106,8 @@ def update_contract(contract_id, data):
                 workshop_description = %s, focal_person_a_name = %s, focal_person_a_position = %s,
                 focal_person_a_phone = %s, focal_person_a_email = %s,
                 party_a_signature_name = %s, party_b_signature_name = %s, party_b_position = %s,
-                total_fee_words = %s, title = %s, deliverables = %s, output_description = %s
+                total_fee_words = %s, title = %s, deliverables = %s, output_description = %s,
+                custom_article_sentences = %s
             WHERE id = %s
             """
             values = (
@@ -118,7 +120,8 @@ def update_contract(contract_id, data):
                 data["workshop_description"], data["focal_person_a_name"], data["focal_person_a_position"],
                 data["focal_person_a_phone"], data["focal_person_a_email"],
                 data["party_a_signature_name"], data["party_b_signature_name"], data["party_b_position"],
-                data["total_fee_words"], data["title"], data["deliverables"], data["output_description"], contract_id
+                data["total_fee_words"], data["title"], data["deliverables"], data["output_description"],
+                data["custom_article_sentences"], contract_id
             )
             cursor.execute(query, values)
             connection.commit()

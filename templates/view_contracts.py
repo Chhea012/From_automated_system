@@ -18,28 +18,24 @@ def to_excel(df):
 def generate_all_docx(contracts_data):
     try:
         zip_buffer = io.BytesIO()
-        used_filenames = set()  # Track used filenames to avoid overwrites
+        used_filenames = set()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for idx, contract_data in contracts_data.iterrows():
                 contract_data = contract_data.to_dict()
                 contract_data['output_description'] = contract_data.get('output_description', '')
                 
-                # Get and sanitize party_b_signature_name
                 party_b_name = contract_data.get('party_b_signature_name', f'Unknown_{idx}')
-                party_b_name = ''.join(c for c in party_b_name if c.isalnum() or c in '._- ')  # Strict sanitization
-                party_b_name = party_b_name.strip() or f'Unknown_{idx}'  # Ensure non-empty
+                party_b_name = ''.join(c for c in party_b_name if c.isalnum() or c in '._- ')
+                party_b_name = party_b_name.strip() or f'Unknown_{idx}'
                 
-                # Get and sanitize contract_number for fallback
                 contract_number = contract_data.get('contract_number', f'Contract_{idx}')
-                contract_number = ''.join(c for c in contract_number if c.isalnum() or c in '._- ')  # Strict sanitization
+                contract_number = ''.join(c for c in contract_number if c.isalnum() or c in '._- ')
                 contract_number = contract_number.strip() or f'Contract_{idx}'
                 
-                # Start with base filename
                 base_file_name = f"{party_b_name}.docx"
                 file_name = base_file_name
                 counter = 1
                 
-                # Handle duplicate filenames
                 while file_name in used_filenames:
                     file_name = f"{party_b_name}_{contract_number}_{counter}.docx"
                     counter += 1
@@ -51,7 +47,7 @@ def generate_all_docx(contracts_data):
                     zip_file.writestr(file_name, docx_bytes)
                 except Exception as e:
                     st.error(f"Error generating DOCX for contract {contract_data.get('contract_number', f'Unknown_{idx}')}: {str(e)}")
-                    continue  # Skip to next contract
+                    continue
         return zip_buffer.getvalue()
     except Exception as e:
         st.error(f"Error creating ZIP file: {str(e)}")
@@ -80,8 +76,6 @@ def view_contracts_tab():
                     "id": None,
                     "total_fee_usd": st.column_config.NumberColumn(format="%.2f", label="Total Fee (USD)"),
                     "gross_amount_usd": st.column_config.NumberColumn(format="%.2f", label="Gross Amount (USD)"),
-                    "payment_gross": st.column_config.TextColumn(label="Gross Payment"),
-                    "payment_net": st.column_config.TextColumn(label="Net Payment"),
                 },
                 hide_index=True,
                 use_container_width=True
@@ -111,7 +105,7 @@ def view_contracts_tab():
                         contract_data = contracts_data[contracts_data['contract_number'] == selected_contract].iloc[0].to_dict()
                         contract_data['output_description'] = contract_data.get('output_description', '')
                         party_b_name = contract_data.get('party_b_signature_name', f'Unknown_{selected_contract}')
-                        party_b_name = ''.join(c for c in party_b_name if c.isalnum() or c in '._- ')  # Strict sanitization
+                        party_b_name = ''.join(c for c in party_b_name if c.isalnum() or c in '._- ')
                         party_b_name = party_b_name.strip() or f'Unknown_{selected_contract}'
                         try:
                             docx_bytes = generate_docx(contract_data)

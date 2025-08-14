@@ -3,8 +3,12 @@ from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 import io
+import json
 
 def generate_docx(data):
+    # Parse custom article sentences
+    custom_article_sentences = json.loads(data.get('custom_article_sentences', '{}'))
+
     # Create document
     doc = Document()
     
@@ -53,15 +57,11 @@ def generate_docx(data):
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(12)
 
-    # Party A
+    # Party A (fixed)
     p = doc.add_paragraph()
-    run = p.add_run(f"{data['organization_name']}, represented by ")
+    run = p.add_run(f"The NGO Forum on Cambodia, represented by Mr. Soeung Saroeun, Executive Director.\n")
     run.bold = True
-    run = p.add_run(f"{data['party_a_name']}, ")
-    run.bold = True
-    run = p.add_run(f"{data['party_a_position']}.\n")
-    run.bold = False
-    run = p.add_run(f"Address: {data['party_a_address']}.\n")
+    run = p.add_run(f"Address: #9-11, Street 476, Sangkat Tuol Tumpoung I, Phnom Penh, Cambodia.\n")
     run.bold = False
     run = p.add_run("hereinafter called the “")
     run.bold = False
@@ -94,9 +94,9 @@ def generate_docx(data):
     p.paragraph_format.space_after = Pt(12)
     p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    # Whereas Clauses
+    # Whereas Clauses (fixed)
     p = doc.add_paragraph(
-        f"Whereas {data['organization_name']} is a legal entity registered with the Ministry of Interior (MOI) {data['registration_number']} dated {data['registration_date']}."
+        f"Whereas NGOF is a legal entity registered with the Ministry of Interior (MOI) #304 សជណ dated 07 March 2012."
     )
     p.paragraph_format.space_after = Pt(12)
 
@@ -141,6 +141,9 @@ def generate_docx(data):
     add_bold_party(p, "Party A")
     run = p.add_run(".”")
     run.bold = False
+    if custom_article_sentences.get('1'):
+        p = doc.add_paragraph(custom_article_sentences['1'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 2
     p = doc.add_heading('', level=2)
@@ -164,6 +167,9 @@ def generate_docx(data):
         "both Parties agree to extend the Term with a written agreement."
     )
     run.bold = False
+    if custom_article_sentences.get('2'):
+        p = doc.add_paragraph(custom_article_sentences['2'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 3
     p = doc.add_heading('', level=2)
@@ -213,6 +219,9 @@ def generate_docx(data):
     add_bold_party(p, "Party B")
     run = p.add_run("” is responsible for all related taxes payable to the government department.")
     run.bold = False
+    if custom_article_sentences.get('3'):
+        p = doc.add_paragraph(custom_article_sentences['3'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 4
     p = doc.add_heading('', level=2)
@@ -258,8 +267,11 @@ def generate_docx(data):
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.LEFT
         for run in cell.paragraphs[0].runs:
             run.font.name = 'Calibri (Body)'
-            if cell != row_cells[1]:  # Only the Total Amount cell should be bold
+            if cell != row_cells[1]:
                 run.bold = False
+    if custom_article_sentences.get('4'):
+        p = doc.add_paragraph(custom_article_sentences['4'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 5
     p = doc.add_heading('', level=2)
@@ -278,6 +290,9 @@ def generate_docx(data):
     p = doc.add_paragraph(
         "No person or entity, which is not a party to this agreement, has any rights to enforce, take any action, or claim it is owed any benefit under this agreement."
     )
+    if custom_article_sentences.get('5'):
+        p = doc.add_paragraph(custom_article_sentences['5'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 6
     p = doc.add_heading('', level=2)
@@ -339,6 +354,9 @@ def generate_docx(data):
     add_bold_party(p, "Party B")
     run = p.add_run("” will work together for overall coordination including reviewing and meeting discussions during the assignment process.")
     run.bold = False
+    if custom_article_sentences.get('6'):
+        p = doc.add_paragraph(custom_article_sentences['6'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 7
     p = doc.add_heading('', level=2)
@@ -368,6 +386,9 @@ def generate_docx(data):
     add_bold_party(p, "Party A")
     run = p.add_run("”.")
     run.bold = False
+    if custom_article_sentences.get('7'):
+        p = doc.add_paragraph(custom_article_sentences['7'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 8
     p = doc.add_heading('', level=2)
@@ -400,6 +421,9 @@ def generate_docx(data):
     add_bold_party(p, "Party A")
     run = p.add_run("”.")
     run.bold = False
+    if custom_article_sentences.get('8'):
+        p = doc.add_paragraph(custom_article_sentences['8'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 9
     p = doc.add_heading('', level=2)
@@ -427,6 +451,9 @@ def generate_docx(data):
     add_bold_party(p, "Party B")
     run = p.add_run("” declared themselves that s/he will perform the assignment in the neutral position, professional manner, and not be involved in any political affiliation.")
     run.bold = False
+    if custom_article_sentences.get('9'):
+        p = doc.add_paragraph(custom_article_sentences['9'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 10
     p = doc.add_heading('', level=2)
@@ -448,6 +475,9 @@ def generate_docx(data):
         'NGOF respects its contracts with its donors and puts procedures in place for compliance with these contracts.\n'
         '“Illicit use” refers to terrorist financing, sanctions, money laundering, and export control regulations.'
     )
+    if custom_article_sentences.get('10'):
+        p = doc.add_paragraph(custom_article_sentences['10'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 11
     p = doc.add_heading('', level=2)
@@ -472,6 +502,9 @@ def generate_docx(data):
     add_bold_party(p, "Party A")
     run = p.add_run("” will not be held responsible for any medical expenses or compensation incurred during or after this contract.")
     run.bold = False
+    if custom_article_sentences.get('11'):
+        p = doc.add_paragraph(custom_article_sentences['11'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 12
     p = doc.add_heading('', level=2)
@@ -512,6 +545,9 @@ def generate_docx(data):
     add_bold_party(p, "Party A")
     run = p.add_run("”.")
     run.bold = False
+    if custom_article_sentences.get('12'):
+        p = doc.add_paragraph(custom_article_sentences['12'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 13
     p = doc.add_heading('', level=2)
@@ -556,6 +592,9 @@ def generate_docx(data):
     run.bold = False
     run = p.add_run("All expenses related to arbitration will be shared equally between both parties.")
     run.bold = False
+    if custom_article_sentences.get('13'):
+        p = doc.add_paragraph(custom_article_sentences['13'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 14
     p = doc.add_heading('', level=2)
@@ -655,6 +694,9 @@ def generate_docx(data):
     add_bold_party(p, "Party A")
     run = p.add_run("”.")
     run.bold = False
+    if custom_article_sentences.get('14'):
+        p = doc.add_paragraph(custom_article_sentences['14'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 15
     p = doc.add_heading('', level=2)
@@ -679,6 +721,9 @@ def generate_docx(data):
     add_bold_party(p, "Party B")
     run = p.add_run("”.")
     run.bold = False
+    if custom_article_sentences.get('15'):
+        p = doc.add_paragraph(custom_article_sentences['15'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Article 16
     p = doc.add_heading('', level=2)
@@ -698,6 +743,9 @@ def generate_docx(data):
         'This agreement shall be governed and construed following the law of the Kingdom of Cambodia. '
         'The Simultaneous Interpretation Agreement is prepared in two original copies.'
     )
+    if custom_article_sentences.get('16'):
+        p = doc.add_paragraph(custom_article_sentences['16'])
+        p.paragraph_format.space_after = Pt(12)
 
     # Date
     p = doc.add_paragraph(f"Date: {data['agreement_start_date']}")
@@ -712,8 +760,8 @@ def generate_docx(data):
     table.columns[1].width = Inches(3.0)
     col1, col2 = table.rows[0].cells
     col1.paragraphs[0].add_run('For “Party A”\n\n\n_________________\n').bold = True
-    col1.paragraphs[0].add_run(data['party_a_signature_name'] + '\n').bold = True
-    col1.paragraphs[0].add_run(data['party_a_position']).bold = True
+    col1.paragraphs[0].add_run('Mr. SOEUNG Saroeun\n').bold = True
+    col1.paragraphs[0].add_run('Executive Director').bold = True
     col1.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     col2.paragraphs[0].add_run('For “Party B”\n\n\n____________________\n').bold = True
     col2.paragraphs[0].add_run(data['party_b_signature_name'] + '\n').bold = True

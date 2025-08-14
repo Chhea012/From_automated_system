@@ -134,50 +134,8 @@ required_fields = [
     'agreement_end_date', 'total_fee_usd', 'total_fee_words', 'tax_percentage',
     'payment_installment_desc', 'deliverables', 'focal_person_a_name', 'focal_person_a_position',
     'focal_person_a_phone', 'focal_person_a_email', 'party_a_signature_name',
-    'party_b_signature_name', 'party_b_position'
+    'party_b_signature_name', 'party_b_position', 'custom_article_sentences'
 ]
-
-def generate_all_docx(contracts_data):
-    try:
-        zip_buffer = io.BytesIO()
-        used_filenames = set()  # Track used filenames to avoid overwrites
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            for idx, contract_data in contracts_data.iterrows():
-                contract_data = contract_data.to_dict()
-                contract_data['output_description'] = contract_data.get('output_description', '')
-                
-                # Get and sanitize party_b_signature_name
-                party_b_name = contract_data.get('party_b_signature_name', f'Unknown_{idx}')
-                party_b_name = ''.join(c for c in party_b_name if c.isalnum() or c in '._- ')  # Strict sanitization
-                party_b_name = party_b_name.strip() or f'Unknown_{idx}'  # Ensure non-empty
-                
-                # Get and sanitize contract_number for fallback
-                contract_number = contract_data.get('contract_number', f'Contract_{idx}')
-                contract_number = ''.join(c for c in contract_number if c.isalnum() or c in '._- ')  # Strict sanitization
-                contract_number = contract_number.strip() or f'Contract_{idx}'
-                
-                # Start with base filename
-                base_file_name = f"{party_b_name}.docx"
-                file_name = base_file_name
-                counter = 1
-                
-                # Handle duplicate filenames
-                while file_name in used_filenames:
-                    file_name = f"{party_b_name}_{contract_number}_{counter}.docx"
-                    counter += 1
-                
-                used_filenames.add(file_name)
-                
-                try:
-                    docx_bytes = generate_docx(contract_data)
-                    zip_file.writestr(file_name, docx_bytes)
-                except Exception as e:
-                    st.error(f"Error generating DOCX for contract {contract_data.get('contract_number', f'Unknown_{idx}')}: {str(e)}")
-                    continue  # Skip to next contract
-        return zip_buffer.getvalue()
-    except Exception as e:
-        st.error(f"Error creating ZIP file: {str(e)}")
-        return None
 
 # Render content based on selected page
 page = st.session_state.active_page
@@ -222,7 +180,7 @@ elif page == "Generate and Download Docx":
                 format_func=lambda x: f"{contracts_data[contracts_data['contract_number'] == x]['party_b_signature_name'].iloc[0]} - {contracts_data[contracts_data['contract_number'] == x]['project_title'].iloc[0]}",
                 key="select_contract_docx"
             )
-            col1, col2 = st.columns([1, 1], gap="small")  # 5px gap approximation
+            col1, col2 = st.columns([1, 1], gap="small")
             with col1:
                 if st.button("Generate and Download DOCX", key="generate_docx_button"):
                     try:
@@ -233,32 +191,22 @@ elif page == "Generate and Download Docx":
                         else:
                             contract_data['output_description'] = contract_data.get('output_description', '')
                             party_b_name = contract_data.get('party_b_signature_name', f'Unknown_{selected_contract}')
-                            party_b_name = ''.join(c for c in party_b_name if c.isalnum() or c in '._- ')  # Strict sanitization
+                            # Sanitize filename, allowing more characters for names
+                            party_b_name = ''.join(c for c in party_b_name if c.isalnum() or c in '._- ')
                             party_b_name = party_b_name.strip() or f'Unknown_{selected_contract}'
                             docx_bytes = generate_docx(contract_data)
+                            file_name = f"Contract_{party_b_name}_{selected_contract}.docx"
                             st.download_button(
-                                label="Download Generated Contract",
+                                label="📄 Download Contract DOCX",
                                 data=docx_bytes,
-                                file_name=f"{party_b_name}.docx",
+                                file_name=file_name,
                                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                 key=f"download_docx_{selected_contract}"
                             )
-                            st.markdown('<div class="success">DOCX generated successfully!</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="success">DOCX generated successfully! Click to download.</div>', unsafe_allow_html=True)
                     except Exception as e:
                         st.error(f"Error generating DOCX: {str(e)}")
-            with col2:
-                if st.button("Generate All and Download All DOCX", key="generate_all_docx_button"):
-                    zip_data = generate_all_docx(contracts_data)
-                    if zip_data:
-                        st.download_button(
-                            label="Download All Contracts as ZIP",
-                            data=zip_data,
-                            file_name="all_contracts.zip",
-                            mime="application/zip",
-                            key="download_all_docx"
-                        )
-                        st.markdown('<div class="success">All DOCX files generated and zipped successfully!</div>', unsafe_allow_html=True)
         else:
             st.info("No contracts available to generate DOCX. Add a contract using the 'Create Contract' option.")
     except Exception as e:
-        st.error(f"Error loading contracts: {str(e)}")
+        st.error(f"Error retrieving contracts: {str(e)}")
