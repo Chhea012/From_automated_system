@@ -1,4 +1,3 @@
-
 import streamlit as st
 import hashlib
 from db_handler import get_db_connection
@@ -35,33 +34,16 @@ def create_users_table():
             return False
     return False
 
-def has_admins():
-    """Check if any Admin users exist in the database."""
-    connection = get_db_connection()
-    if connection:
-        try:
-            cursor = connection.cursor()
-            query = "SELECT COUNT(*) FROM users WHERE role = 'Admin'"
-            cursor.execute(query)
-            count = cursor.fetchone()[0]
-            cursor.close()
-            connection.close()
-            return count > 0
-        except Error as e:
-            st.error(f"Error checking for admins: {e}")
-            return False
-    return False
-
-def register_user(username, password, email, role='Employee'):
-    """Register a new user with a specified role."""
+def create_user(username, password, email, role='Employee'):
+    """Create a new user with a specified role, only allowed for Admins."""
     # Validate role
     if role not in ['Admin', 'Employee']:
         st.error("Invalid role specified.")
         return False
     
-    # Allow Admin role only if no Admins exist or the current user is an Admin
-    if role == 'Admin' and has_admins() and (not st.session_state.get('logged_in') or st.session_state.get('role') != 'Admin'):
-        st.error("Only Admins can register new Admin users.")
+    # Check if current user is Admin
+    if not st.session_state.get('logged_in') or st.session_state.get('role') != 'Admin':
+        st.error("Only Admins can create new users.")
         return False
 
     hashed_password = hash_password(password)
@@ -82,9 +64,88 @@ def register_user(username, password, email, role='Employee'):
             if e.errno == mysql.connector.errorcode.ER_DUP_ENTRY:
                 st.error("Username or email already exists.")
             else:
-                st.error(f"Error registering user: {e}")
+                st.error(f"Error creating user: {e}")
             return False
     return False
+
+def update_user(user_id, username, email, role, password=None):
+    """Update an existing user's details, only allowed for Admins."""
+    if not st.session_state.get('logged_in') or st.session_state.get('role') != 'Admin':
+        st.error("Only Admins can update users.")
+        return False
+    
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            if password:
+                hashed_password = hash_password(password)
+                query = """
+                UPDATE users 
+                SET username = %s, email = %s, role = %s, password = %s
+                WHERE id = %s
+                """
+                cursor.execute(query, (username, email, role, hashed_password, user_id))
+            else:
+                query = """
+                UPDATE users 
+                SET username = %s, email = %s, role = %s
+                WHERE id = %s
+                """
+                cursor.execute(query, (username, email, role, user_id))
+            connection.commit()
+            cursor.close()
+            connection.close()
+            return True
+        except Error as e:
+            if e.errno == mysql.connector.errorcode.ER_DUP_ENTRY:
+                st.error("Username or email already exists.")
+            else:
+                st.error(f"Error updating user: {e}")
+            return False
+    return False
+
+def delete_user(user_id):
+    """Delete a user, only allowed for Admins."""
+    if not st.session_state.get('logged_in') or st.session_state.get('role') != 'Admin':
+        st.error("Only Admins can delete users.")
+        return False
+    
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = "DELETE FROM users WHERE id = %s"
+            cursor.execute(query, (user_id,))
+            connection.commit()
+            cursor.close()
+            connection.close()
+            return True
+        except Error as e:
+            st.error(f"Error deleting user: {e}")
+            return False
+    return False
+
+def get_all_users():
+    """Retrieve all users from the database, only allowed for Admins."""
+    if not st.session_state.get('logged_in') or st.session_state.get('role') != 'Admin':
+        st.error("Only Admins can view users.")
+        return None
+    
+    connection = get_db_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = "SELECT id, username, email, role, created_at FROM users"
+            cursor.execute(query)
+            users = cursor.fetchall()
+            cursor.close()
+            connection.close()
+            return users
+        except Error as e:
+            st.error(f"Error retrieving users: {e}")
+            return None
+    return None
 
 def login_user(username, password):
     """Login a user and return user data if successful."""

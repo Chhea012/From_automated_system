@@ -7,9 +7,7 @@ from templates.delete_contract import delete_contract_tab
 from templates.generate_contract import generate_docx
 from db_handler import get_contracts
 from utils.styles import STYLES
-from auth import create_users_table
-from login import login_tab
-from register import register_tab
+from auth import create_users_table, login_user, create_user, get_all_users, update_user, delete_user
 import io
 import zipfile
 
@@ -127,11 +125,9 @@ if st.session_state.logged_in:
 # Define navigation options based on login status
 if not st.session_state.logged_in:
     navigation_options = {
-        "Login": "🔑",
-        "Register": "📝"
+        "Login": "🔑"
     }
 else:
-    # Same navigation options for both Admin and Employee
     navigation_options = {
         "Create Contract": "📝",
         "View Contract": "👁️‍🗨️",
@@ -141,6 +137,9 @@ else:
         "Generate and Download Docx": "📄",
         "Logout": "🚪"
     }
+    # Add "Manage Users" option only for Admins
+    if st.session_state.role == "Admin":
+        navigation_options["Manage Users"] = "👤"
 
 # Sidebar navigation buttons
 for page_name, icon in navigation_options.items():
@@ -220,9 +219,25 @@ page = st.session_state.active_page
 
 if not st.session_state.logged_in:
     if page == "Login":
-        login_tab()
-    elif page == "Register":
-        register_tab()
+        st.markdown('<div class="section-header">Login</div>', unsafe_allow_html=True)
+        with st.form(key="login_form"):
+            username = st.text_input("Username", max_chars=255)
+            password = st.text_input("Password", type="password", max_chars=255)
+            submit_button = st.form_submit_button("Login")
+            
+            if submit_button:
+                if not username or not password:
+                    st.error("Username and password are required.")
+                else:
+                    user = login_user(username, password)
+                    if user:
+                        st.session_state.logged_in = True
+                        st.session_state.username = user['username']
+                        st.session_state.role = user['role']
+                        st.session_state.active_page = "View Contract"
+                        st.rerun()
+                    else:
+                        st.error("Invalid username or password.")
 else:
     if page == "Create Contract":
         create_contract_tab()
@@ -305,3 +320,71 @@ else:
                 st.info("No contracts available to generate DOCX. Add a contract using the 'Create Contract' option.")
         except Exception as e:
             st.error(f"Error loading contracts: {str(e)}")
+    elif page == "Manage Users" and st.session_state.role == "Admin":
+        st.markdown('<div class="section-header">Manage Users</div>', unsafe_allow_html=True)
+        
+        # View Users
+        st.markdown('### View Users', unsafe_allow_html=True)
+        users = get_all_users()
+        if users:
+            users_df = pd.DataFrame(users)
+            st.dataframe(users_df[['id', 'username', 'email', 'role', 'created_at']], use_container_width=True)
+        else:
+            st.info("No users found.")
+        
+        # Create User
+        st.markdown('### Create New User', unsafe_allow_html=True)
+        with st.form(key="create_user_form"):
+            new_username = st.text_input("New Username", max_chars=255, key="create_username")
+            new_email = st.text_input("New Email", max_chars=255, key="create_email")
+            new_password = st.text_input("New Password", type="password", max_chars=255, key="create_password")
+            confirm_password = st.text_input("Confirm Password", type="password", max_chars=255, key="create_confirm_password")
+            new_role = st.selectbox("Select Role", options=["Employee", "Admin"], key="create_role")
+            create_submit = st.form_submit_button("Create User")
+            
+            if create_submit:
+                if not new_username or not new_email or not new_password:
+                    st.error("All fields are required.")
+                elif new_password != confirm_password:
+                    st.error("Passwords do not match.")
+                elif create_user(new_username, new_password, new_email, new_role):
+                    st.success("User created successfully!")
+                    st.rerun()
+                else:
+                    st.error("Failed to create user.")
+        
+        # Edit User
+        st.markdown('### Edit User', unsafe_allow_html=True)
+        if users:
+            selected_user = st.selectbox("Select User to Edit", options=[user['username'] for user in users], key="edit_user_select")
+            selected_user_data = next(user for user in users if user['username'] == selected_user)
+            with st.form(key="edit_user_form"):
+                edit_username = st.text_input("Username", value=selected_user_data['username'], max_chars=255, key="edit_username")
+                edit_email = st.text_input("Email", value=selected_user_data['email'], max_chars=255, key="edit_email")
+                edit_role = st.selectbox("Role", options=["Employee", "Admin"], index=0 if selected_user_data['role'] == "Employee" else 1, key="edit_role")
+                edit_password = st.text_input("New Password (leave blank to keep unchanged)", type="password", max_chars=255, key="edit_password")
+                edit_submit = st.form_submit_button("Update User")
+                
+                if edit_submit:
+                    if not edit_username or not edit_email:
+                        st.error("Username and email are required.")
+                    elif update_user(selected_user_data['id'], edit_username, edit_email, edit_role, edit_password):
+                        st.success("User updated successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Failed to update user.")
+        else:
+            st.info("No users available to edit.")
+        
+        # Delete User
+        st.markdown('### Delete user', unsafe_allow_html=True)
+        if users:
+            delete_user_select = st.selectbox("Select User to Delete", options=[user['username'] for user in users], key="delete_user_select")
+            if st.button("Delete Selected User", key="delete_user_button"):
+                selected_user_data = next(user for user in users if user['username'] == delete_user_select)
+                if delete_user(selected_user_data['id']):
+                    st.success("User deleted successfully!")
+                    st.rerun()
+                # Error handling is managed in delete_user function
+        else:
+            st.info("No users available to delete.")
